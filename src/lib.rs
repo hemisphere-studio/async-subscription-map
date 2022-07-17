@@ -216,59 +216,59 @@ mod test {
 
     macro_rules! assert_map_len {
         ($map:ident, $len:expr) => {
-            assert_eq!($map.snapshot().len(), $len);
+            assert_eq!($map.snapshot().await.len(), $len);
         };
     }
 
     macro_rules! assert_ref_count {
         ($map:ident, $key:expr, $rc:expr) => {
-            assert_eq!($map.snapshot().get($key).unwrap().rc, $rc);
+            assert_eq!($map.snapshot().await.get($key).unwrap().rc, $rc);
         };
     }
 
-    #[test]
-    fn should_immediately_remove_unused() {
+    #[async_std::test]
+    async fn should_immediately_remove_unused() {
         let map: SubscriptionMap<usize, usize> = SubscriptionMap::new();
         assert_map_len!(map, 0);
 
-        let _ = map.get_or_insert(1, 1);
+        let _ = map.get_or_insert(1, 1).await;
         assert_map_len!(map, 0);
 
-        let _ = map.get_or_insert(2, 2);
+        let _ = map.get_or_insert(2, 2).await;
         assert_map_len!(map, 0);
     }
 
-    #[test]
-    fn should_remove_entries_on_ref_drop() {
+    #[async_std::test]
+    async fn should_remove_entries_on_ref_drop() {
         let map: SubscriptionMap<usize, usize> = SubscriptionMap::new();
         assert_map_len!(map, 0);
 
-        let ref_one = map.get_or_insert(1, 1);
+        let ref_one = map.get_or_insert(1, 1).await;
         assert_map_len!(map, 1);
 
-        let ref_two = map.get_or_insert(2, 2);
+        let ref_two = map.get_or_insert(2, 2).await;
         assert_map_len!(map, 2);
 
         drop(ref_one);
         assert_map_len!(map, 1);
-        assert!(map.snapshot().get(&1).is_none());
-        assert!(map.snapshot().get(&2).is_some());
+        assert!(map.snapshot().await.get(&1).is_none());
+        assert!(map.snapshot().await.get(&2).is_some());
 
         drop(ref_two);
         assert_map_len!(map, 0);
-        assert!(map.snapshot().get(&1).is_none());
-        assert!(map.snapshot().get(&2).is_none());
+        assert!(map.snapshot().await.get(&1).is_none());
+        assert!(map.snapshot().await.get(&2).is_none());
     }
 
-    #[test]
-    fn should_keep_track_of_ref_count() {
+    #[async_std::test]
+    async fn should_keep_track_of_ref_count() {
         let map: SubscriptionMap<usize, usize> = SubscriptionMap::new();
         assert_map_len!(map, 0);
 
-        let ref_one = map.get_or_insert(1, 1);
+        let ref_one = map.get_or_insert(1, 1).await;
         assert_ref_count!(map, &1, 1);
 
-        let ref_two = map.get_or_insert(1, 1);
+        let ref_two = map.get_or_insert(1, 1).await;
         assert_ref_count!(map, &1, 2);
 
         drop(ref_one);
