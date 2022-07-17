@@ -133,83 +133,6 @@ where
     }
 }
 
-impl<K, V> IntoIterator for &SubscriptionMap<K, V>
-where
-    K: Clone + Debug + Eq + Hash + Ord,
-    V: Clone + Debug,
-{
-    type Item = K;
-    type IntoIter = Keys<K, V>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        Keys::from(self)
-    }
-}
-
-/// An on-demand locking iterator over keys of a subscription map
-///
-/// ## Warning
-/// This is not comparable to a snapshot of all keys! It will be affected by
-/// concurrent access to the underlying map due to the fact that it doesnt copy
-/// anything, it only iterates through the parent map using a cursor.
-#[derive(Debug)]
-pub struct Keys<K, V>
-where
-    K: Clone + Debug + Eq + Hash + Ord,
-    V: Clone + Debug,
-{
-    map: SubscriptionMap<K, V>,
-    previous: Option<K>,
-    done: bool,
-}
-
-impl<K, V> Frm<&SubscriptionMap<K, V>> for Keys<K, V>
-where
-    K: Clone + Debug + Eq + Hash + Ord,
-    V: Clone + Debug,
-{
-    fn from(map: &SubscriptionMap<K, V>) -> Self {
-        Self {
-            map: map.clone(),
-            previous: None,
-            done: false,
-        }
-    }
-}
-
-impl<K, V> Iterator for Keys<K, V>
-where
-    K: Clone + Debug + Eq + Hash + Ord,
-    V: Clone + Debug,
-{
-    type Item = K;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        use std::ops::Bound::{Excluded, Unbounded};
-
-        if self.done {
-            return None;
-        }
-
-        let bounds = match self.previous.clone() {
-            None => (Unbounded, Unbounded),
-            Some(key) => (Excluded(key), Unbounded),
-        };
-
-        let key = self
-            .map
-            .lock_inner()
-            .range(bounds)
-            .next()
-            .map(|(k, _)| k.clone());
-
-        self.previous = key.clone();
-        self.done = key.is_none();
-
-        key
-    }
-}
-
 /// A transparent wrapper for the underlying subscription in the map
 /// which manages the subscription count and removes the observable if no one
 /// holds a subscription to it.
@@ -365,95 +288,15 @@ mod test {
         assert_map_len!(map, 0);
     }
 
-    #[test]
+    #[async_std::test]
     #[should_panic]
-    fn shouldnt_remove_if_rc_is_not_zero() {
+    async fn shouldnt_remove_if_rc_is_not_zero() {
         let map: SubscriptionMap<usize, usize> = SubscriptionMap::new();
         assert_map_len!(map, 0);
 
-        let _ref = map.get_or_insert(1, 1);
+        let _ref = map.get_or_insert(1, 1).await;
         assert_ref_count!(map, &1, 1);
 
-        map.remove(&1).unwrap();
+        map.remove(&1).await.unwrap();
     }
-
-    mod keys {
-        use super::*;
-
-        #[test]
-        fn should_be_initially_empty() {
-            let map: SubscriptionMap<usize, usize> = SubscriptionMap::new();
-            let mut keys = map.into_iter();
-            assert_eq!(keys.next(), None);
-        }
-
-        #[test]
-        fn should_be_ordered() {
-            let map: SubscriptionMap<usize, usize> = SubscriptionMap::new();
-
-            let _0 = map.get_or_insert(0, 0);
-            let _1 = map.get_or_insert(1, 1);
-            let _2 = map.get_or_insert(2, 2);
-
-            assert_map_len!(map, 3);
-
-            let mut keys = map.into_iter();
-
-            assert_eq!(keys.next(), Some(0));
-            assert_eq!(keys.next(), Some(1));
-            assert_eq!(keys.next(), Some(2));
-            assert_eq!(keys.next(), None);
-        }
-
-        #[test]
-        fn should_not_retrieve_new_keys_after_first_none() {
-            let map: SubscriptionMap<usize, usize> = SubscriptionMap::new();
-
-            let _0 = map.get_or_insert(0, 0);
-            assert_map_len!(map, 1);
-
-            let mut keys = map.into_iter();
-            assert_eq!(keys.next(), Some(0));
-            assert_eq!(keys.next(), None);
-
-            let _1 = map.get_or_insert(1, 1);
-            assert_eq!(keys.next(), None);
-
-            let _2 = map.get_or_insert(2, 2);
-            assert_eq!(keys.next(), None);
-        }
-
-        #[test]
-        fn should_retrieve_new_keys_after_first_usage() {
-            let map: SubscriptionMap<usize, usize> = SubscriptionMap::new();
-
-            let _0 = map.get_or_insert(0, 0);
-            assert_map_len!(map, 1);
-
-            let mut keys = map.into_iter();
-            assert_eq!(keys.next(), Some(0));
-
-            let _1 = map.get_or_insert(1, 1);
-            assert_eq!(keys.next(), Some(1));
-
-            let _2 = map.get_or_insert(2, 2);
-            assert_eq!(keys.next(), Some(2));
-            assert_eq!(keys.next(), None);
-        }
-
-        #[test]
-        fn should_retrieve_new_keys_before_first_usage() {
-            let map: SubscriptionMap<usize, usize> = SubscriptionMap::new();
-            let mut keys = map.into_iter();
-
-            assert_map_len!(map, 0);
-
-            let _0 = map.get_or_insert(0, 0);
-            assert_eq!(keys.next(), Some(0));
-
-            let _1 = map.get_or_insert(1, 1);
-            assert_eq!(keys.next(), Some(1));
-            assert_eq!(keys.next(), None);
-        }
-    }
-}o
+}
