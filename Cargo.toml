@@ -1,0 +1,12 @@
+[package]
+name = "async-subscription-map"
+version = "0.1.0"
+edition = "2021"
+authors = [
+    "Florian Uekermann <florian.uekermann@hum-systems.com>",
+    "Mara Schulke <mara.schulke@hum-systems.com>",
+]
+
+[dependencies]
+async-std = "1.11"
+async-observable = "0.1"
