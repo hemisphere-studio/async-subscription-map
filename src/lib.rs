@@ -1,10 +1,11 @@
+use anyhow::Context;
 use async_observable::Observable;
+use async_std::sync::Mutex;
+use async_std::task::block_on;
 use std::collections::BTreeMap;
 use std::fmt::Debug;
 use std::hash::Hash;
-use std::iter::IntoIterator;
 use std::ops::{Deref, DerefMut};
-use async_std::sync::{Mutex, MutexGuard};
 use std::sync::Arc;
 
 /// A concurrent and self cleaning map of observable values
@@ -45,8 +46,8 @@ where
         Self(Arc::new(Mutex::new(BTreeMap::new())))
     }
 
-    pub fn get_or_insert(&self, key: K, value: V) -> SubscriptionRef<K, V> {
-        let mut map = self.lock_inner();
+    pub async fn get_or_insert(&self, key: K, value: V) -> SubscriptionRef<K, V> {
+        let mut map = self.0.lock().await;
         let entry = {
             let entry = SubscriptionEntry::new(value);
             map.entry(key.clone()).or_insert(entry)
@@ -55,17 +56,13 @@ where
         SubscriptionRef::new(key, self.clone(), entry).unwrap()
     }
 
-    pub fn keys(&self) -> Keys<K, V> {
-        Keys::from(self)
-    }
-
     #[cfg(test)]
-    fn snapshot(&self) -> BTreeMap<K, SubscriptionEntry<V>> {
-        self.lock_inner().deref().clone()
+    async fn snapshot(&self) -> BTreeMap<K, SubscriptionEntry<V>> {
+        self.0.lock().await.deref().clone()
     }
 
-    fn remove(&self, key: &K) -> anyhow::Result<()> {
-        let mut map = self.lock_inner();
+    async fn remove(&self, key: &K) -> anyhow::Result<()> {
+        let mut map = self.0.lock().await;
 
         let entry = map
             .get(key)
@@ -81,13 +78,6 @@ where
 
         Ok(())
     }
-
-    fn lock_inner(&self) -> MutexGuard<'_, BTreeMap<K, SubscriptionEntry<V>>> {
-        match self.0.lock() {
-            Ok(guard) => guard,
-            Err(e) => e.into_inner(),
-        }
-    }
 }
 
 impl<K, V> SubscriptionMap<K, V>
@@ -97,8 +87,8 @@ where
 {
     /// Check if the provided value differs from the observable and return the info if a publish
     /// was made.
-    pub fn publish_if_changed(&self, key: &K, value: V) -> anyhow::Result<bool> {
-        let mut map = self.lock_inner();
+    pub async fn publish_if_changed(&self, key: &K, value: V) -> anyhow::Result<bool> {
+        let mut map = self.0.lock().await;
         let entry = map
             .get_mut(key)
             .with_context(|| format!("unable publish new version of not present key {:?}", key))?;
@@ -106,11 +96,11 @@ where
         Ok(entry.observable.publish_if_changed(value))
     }
 
-    pub fn modify_and_publish<F, R>(&self, key: &K, modify: F) -> anyhow::Result<()>
+    pub async fn modify_and_publish<F, R>(&self, key: &K, modify: F) -> anyhow::Result<()>
     where
         F: FnOnce(&mut V) -> R,
     {
-        let mut map = self.lock_inner();
+        let mut map = self.0.lock().await;
         let entry = map
             .get_mut(key)
             .with_context(|| format!("unable modify not present key {:?}", key))?;
@@ -163,7 +153,7 @@ where
         Ok(Self {
             key,
             owner,
-            observable: entry.observable.fork(),
+            observable: entry.observable.clone(),
         })
     }
 }
@@ -196,9 +186,9 @@ where
     V: Clone + Debug,
 {
     fn drop(&mut self) {
-        log::info!("rc drop");
+        log::trace!("drop for subscription ref for key {:?}", self.key);
 
-        let mut map = self.owner.lock_inner();
+        let mut map = block_on(self.owner.0.lock());
         let mut entry = match map.get_mut(&self.key) {
             Some(entry) => entry,
             None => {
@@ -211,7 +201,7 @@ where
 
         if entry.rc == 0 {
             drop(map);
-            let res = self.owner.remove(&self.key);
+            let res = block_on(self.owner.remove(&self.key));
 
             if let Err(e) = res {
                 log::error!("error occurred while cleanup subscription ref {}", e);
