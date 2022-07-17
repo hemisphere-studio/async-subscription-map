@@ -8,5 +8,7 @@ authors = [
 ]
 
 [dependencies]
-async-std = "1.11"
+anyhow = "1"
+async-std = { version = "1.11", features = ["attributes"] }
 async-observable = "0.1"
+log = "0.4"
