@@ -1,3 +1,31 @@
+//! A subscription map is a self cleaning map of `Observable`s which tracks
+//! tasks that want to subscribe to state updates on a certain key. This
+//! becomes very useful if you have multiple tasks in your program and you want
+//! to wait in one task until the other starts publishing state updates.
+//!
+//! It enables you to generically  communicate through your whole program by
+//! just knowing an identifier, no need to pass observables around - they are
+//! created on the fly and only if someone subcribes to them. This is ideal for
+//! highly asynchronous and performance critical backend implementations which
+//! process and serve data accross multiple protocols and want to cut down
+//! latency through communicating in memory.
+//!
+//! <div>
+//! <br/>
+//! <img
+//!     style="margin: 0 auto; display: block;"
+//!     src="../../../docs/diagram.png"
+//!     height="300"
+//!     width="720"
+//! />
+//! <br/>
+//! </div>
+//!
+//! ## Self Cleaning Nature
+//!
+//! The subscription map is selfcleaing in the sense that it removes every
+//! subscription entry and its data as soon as no one subscribes to it and thus
+//! actively preventing memory leaks!
 use anyhow::Context;
 use async_observable::Observable;
 use async_std::sync::Mutex;
@@ -8,7 +36,28 @@ use std::hash::Hash;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 
-/// A concurrent and self cleaning map of observable values
+/// A concurrent and self cleaning map of observable values to easily
+/// communicate dynamically across tasks.
+///
+/// ```
+/// # use async_subscription_map::SubscriptionMap;
+/// # use async_std::task;
+/// # async {
+/// let map = SubscriptionMap::<usize, usize>::default();
+/// let mut subscription = map.get_or_insert(1, 0).await;
+///
+/// task::spawn(async move {
+///     // somewhere else in your program
+///     let mut subscription = map.get_or_insert(1, 0).await;
+///     log::info!("received update throguh map: {}", subscription.next().await);
+/// });
+///
+/// // wait for some event and publish the state
+/// subscription.publish(1);
+/// // just drop the ref as soon as you are done with it to trigger the cleanup
+/// drop(subscription);
+/// # };
+/// ```
 #[derive(Clone, Debug)]
 pub struct SubscriptionMap<K, V>(Arc<Mutex<BTreeMap<K, SubscriptionEntry<V>>>>)
 where
@@ -42,10 +91,12 @@ where
     K: Clone + Debug + Eq + Hash + Ord,
     V: Clone + Debug,
 {
+    /// Create an empty SubscriptionMap
     pub fn new() -> Self {
         Self(Arc::new(Mutex::new(BTreeMap::new())))
     }
 
+    /// Either creates a ref to a existing subscription or initializes a new one.
     pub async fn get_or_insert(&self, key: K, value: V) -> SubscriptionRef<K, V> {
         let mut map = self.0.lock().await;
         let entry = {
@@ -87,6 +138,22 @@ where
 {
     /// Check if the provided value differs from the observable and return the info if a publish
     /// was made.
+    ///
+    /// ```
+    /// # use async_subscription_map::SubscriptionMap;
+    /// # async {
+    /// let map = SubscriptionMap::<usize, usize>::default();
+    /// let mut subscription = map.get_or_insert(1, 0).await;
+    ///
+    /// assert_eq!(subscription.latest(), 0);
+    /// map.publish_if_changed(&1, 1);
+    /// assert_eq!(subscription.next().await, 1);
+    /// map.publish_if_changed(&1, 1);
+    ///
+    /// // this will never resolve since we did not publish an update!
+    /// subscription.next().await
+    /// # };
+    /// ```
     pub async fn publish_if_changed(&self, key: &K, value: V) -> anyhow::Result<bool> {
         let mut map = self.0.lock().await;
         let entry = map
@@ -96,6 +163,23 @@ where
         Ok(entry.observable.publish_if_changed(value))
     }
 
+    /// Modify the value contained in the subscription through a mutable reference and notify
+    /// others.
+    ///
+    ///
+    /// This is handy for expensive data structures such as vectors, trees or maps.
+    ///
+    /// ```
+    /// # use async_subscription_map::SubscriptionMap;
+    /// # async {
+    /// let map = SubscriptionMap::<usize, usize>::default();
+    /// let mut subscription = map.get_or_insert(1, 0).await;
+    ///
+    /// assert_eq!(subscription.latest(), 0);
+    /// map.modify_and_publish(&1, |mut v| *v = 1);
+    /// assert_eq!(subscription.latest(), 1);
+    /// # };
+    /// ```
     pub async fn modify_and_publish<F, R>(&self, key: &K, modify: F) -> anyhow::Result<()>
     where
         F: FnOnce(&mut V) -> R,
