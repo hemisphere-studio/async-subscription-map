@@ -2,10 +2,17 @@
 name = "async-subscription-map"
 version = "0.1.0"
 edition = "2021"
+description = "Async bookkeeping datastructure for state subscriptions"
 authors = [
-    "Florian Uekermann <florian.uekermann@hum-systems.com>",
     "Mara Schulke <mara.schulke@hum-systems.com>",
+    "Florian Uekermann <florian.uekermann@hum-systems.com>"
 ]
+repository = "https://github.com/Hum-Systems/async-subscription-map"
+documentation = "https://docs.rs/async-subscription-map"
+keywords = ["async", "subscriptions", "reactive", "observable", "synchronization"]
+categories = ["asynchronous", "concurrency", "network-programming"]
+readme = "README.md"
+license = "MIT"
 
 [dependencies]
 anyhow = "1"
