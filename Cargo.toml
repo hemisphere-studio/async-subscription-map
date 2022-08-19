@@ -21,4 +21,4 @@ async-observable = "0.2"
 log = "0.4"
 
 [dev-dependencies]
-simple_logger = "*"
+simple_logger = "2"
