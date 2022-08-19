@@ -53,7 +53,7 @@ where
             map.entry(key.clone()).or_insert(entry)
         };
 
-        SubscriptionRef::new(key, self.clone(), entry).unwrap()
+        SubscriptionRef::new(key, self.clone(), entry)
     }
 
     #[cfg(test)]
@@ -143,18 +143,14 @@ where
     K: Clone + Debug + Eq + Hash + Ord,
     V: Clone + Debug,
 {
-    fn new(
-        key: K,
-        owner: SubscriptionMap<K, V>,
-        entry: &mut SubscriptionEntry<V>,
-    ) -> anyhow::Result<Self> {
+    fn new(key: K, owner: SubscriptionMap<K, V>, entry: &mut SubscriptionEntry<V>) -> Self {
         entry.rc += 1;
 
-        Ok(Self {
+        Self {
             key,
             owner,
             observable: entry.observable.clone(),
-        })
+        }
     }
 }
 
