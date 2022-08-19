@@ -15,6 +15,7 @@
       alt="docs.rs docs" />
   </a>
 </div>
+<br />
 
 A subscription map is a self cleaning map of `Observable`s which tracks tasks
 that want to subscribe to state updates on a certain key. This becomes very
