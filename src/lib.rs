@@ -5,10 +5,10 @@
 //!
 //! It enables you to generically  communicate through your whole program by
 //! just knowing an identifier, no need to pass observables around - they are
-//! created on the fly and only if someone subcribes to them. This is ideal for
-//! highly asynchronous and performance critical backend implementations which
-//! process and serve data accross multiple protocols and want to cut down
-//! latency through communicating in memory.
+//! created on the fly and only if someone subscribes to them. This is ideal
+//! for highly asynchronous and performance critical backend implementations
+//! which process and serve data accross multiple protocols and want to cut
+//! down latency through communicating in memory.
 //!
 //! <div>
 //! <br/>
