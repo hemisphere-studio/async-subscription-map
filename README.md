@@ -45,10 +45,9 @@ it to understand the underlying synchronization api.
 
 ---
 
-<div align="center">
+<div align="center" style="font-size: 10px;">
     <em>
-        This code was originally published by the [HUM
-        Systems](https://github.com/Hum-Systems). This repository continues the
-        development of this library as they sadly stopped their open source efforts.
+        This code was originally published by <a href="https://github.com/Hum-Systems">HUM Systems</a>.
+        This repository continues the development of this library as they sadly stopped their open source efforts.
     </em>
 </div>
