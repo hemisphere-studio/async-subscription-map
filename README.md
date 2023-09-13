@@ -42,3 +42,10 @@ actively preventing memory leaks!
 This project is build ontop of
 [async-observable](https://crates.io/crates/async-observable), take a look at
 it to understand the underlying synchronization api.
+
+
+###### Acknowledgement
+
+This code was originally published by the [HUM
+Systems](https://github.com/Hum-Systems). This repository continues the
+development of this library as they sadly stopped their open source efforts.
