@@ -43,8 +43,11 @@ This project is build ontop of
 [async-observable](https://crates.io/crates/async-observable), take a look at
 it to understand the underlying synchronization api.
 
+---
 
-###### Acknowledgement
+<div align="center">
+  <h6>Ackowledgement</h6>
+</div>
 
 This code was originally published by the [HUM
 Systems](https://github.com/Hum-Systems). This repository continues the
