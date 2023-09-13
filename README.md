@@ -46,9 +46,9 @@ it to understand the underlying synchronization api.
 ---
 
 <div align="center">
-  <h6>Ackowledgement</h6>
+    <em>
+        This code was originally published by the [HUM
+        Systems](https://github.com/Hum-Systems). This repository continues the
+        development of this library as they sadly stopped their open source efforts.
+    </em>
 </div>
-
-This code was originally published by the [HUM
-Systems](https://github.com/Hum-Systems). This repository continues the
-development of this library as they sadly stopped their open source efforts.
