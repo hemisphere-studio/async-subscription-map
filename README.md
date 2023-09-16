@@ -43,11 +43,8 @@ This project is build ontop of
 [async-observable](https://crates.io/crates/async-observable), take a look at
 it to understand the underlying synchronization api.
 
----
+<br />
 
-<div align="center" style="font-size: 10px;">
-    <em>
-        This code was originally published by <a href="https://github.com/Hum-Systems">HUM Systems</a>.
-        This repository continues the development of this library as they sadly stopped their open source efforts.
-    </em>
-</div>
+<h6 align="center">
+    This code was originally published by HUM Systems. This repository continues the development of this library as they sadly stopped their open source efforts.
+</h6>
